@@ -58,6 +58,7 @@ public class HelloServlet extends HttpServlet {
         out.println("</body>");
         out.println("</html>");
         out.println("Ending the code");
+        out.println("Final Code");
     }
 
     @Override
