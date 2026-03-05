@@ -4,10 +4,10 @@ pipeline {
     environment {
         EC2_USER       = 'ubuntu'
         EC2_HOST       = '100.55.11.32'
-        EC2_CRED       = 'ec2-ssh-key'
         WAR_NAME       = 'my-java-webapp.war'
         APP_CONTEXT    = 'my-java-webapp'
         TOMCAT_WEBAPPS = '/var/lib/tomcat10/webapps'
+        PEM_FILE       = 'C:\\Users\\khana\\Downloads\\jenkinsKeyPair.pem'
     }
 
     tools {
@@ -41,31 +41,23 @@ pipeline {
         stage('Deploy to EC2') {
             steps {
                 echo '🚀 Deploying WAR to Tomcat on EC2...'
-                sshagent(credentials: ["${EC2_CRED}"]) {
 
-                    bat """
-                        scp -o StrictHostKeyChecking=no target\\${WAR_NAME} ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/${WAR_NAME}
-                    """
+                bat """
+                    scp -o StrictHostKeyChecking=no -i "${PEM_FILE}" target\\${WAR_NAME} ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/${WAR_NAME}
+                """
 
-                    bat """
-                        ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} ^
-                        "sudo cp /home/${EC2_USER}/${WAR_NAME} ${TOMCAT_WEBAPPS}/${WAR_NAME} && ^
-                         sudo systemctl restart tomcat10 && ^
-                         echo 'Tomcat restarted successfully!'"
-                    """
-                }
+                bat """
+                    ssh -o StrictHostKeyChecking=no -i "${PEM_FILE}" ${EC2_USER}@${EC2_HOST} "sudo cp /home/${EC2_USER}/${WAR_NAME} ${TOMCAT_WEBAPPS}/${WAR_NAME} && sudo systemctl restart tomcat10 && echo Tomcat restarted!"
+                """
             }
         }
 
         stage('Verify') {
             steps {
                 echo '✅ Verifying deployment...'
-                sshagent(credentials: ["${EC2_CRED}"]) {
-                    bat """
-                        ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} ^
-                        "sleep 5 && sudo systemctl is-active tomcat10 && echo 'Tomcat is running!' || echo 'Tomcat failed!'"
-                    """
-                }
+                bat """
+                    ssh -o StrictHostKeyChecking=no -i "${PEM_FILE}" ${EC2_USER}@${EC2_HOST} "sleep 5 && sudo systemctl is-active tomcat10 && echo App is running!"
+                """
             }
         }
     }
@@ -92,8 +84,6 @@ pipeline {
         }
     }
 }
-
-
 
 /*pipeline {
     agent any
