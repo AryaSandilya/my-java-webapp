@@ -1,5 +1,102 @@
 pipeline {
     agent any
+
+    environment {
+        EC2_USER       = 'ubuntu'
+        EC2_HOST       = '100.55.11.32'
+        EC2_CRED       = 'ec2-ssh-key'
+        WAR_NAME       = 'my-java-webapp.war'
+        APP_CONTEXT    = 'my-java-webapp'
+        TOMCAT_WEBAPPS = '/var/lib/tomcat10/webapps'
+    }
+
+    tools {
+        maven 'Maven'
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo '📥 Checking out source code...'
+                checkout scm
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo '🔨 Building Maven WAR...'
+                bat 'mvn clean package -DskipTests'
+                echo 'Build complete!'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo '🧪 Running tests...'
+                bat 'mvn test'
+            }
+        }
+
+        stage('Deploy to EC2') {
+            steps {
+                echo '🚀 Deploying WAR to Tomcat on EC2...'
+                sshagent(credentials: ["${EC2_CRED}"]) {
+
+                    bat """
+                        scp -o StrictHostKeyChecking=no target\\${WAR_NAME} ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/${WAR_NAME}
+                    """
+
+                    bat """
+                        ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} ^
+                        "sudo cp /home/${EC2_USER}/${WAR_NAME} ${TOMCAT_WEBAPPS}/${WAR_NAME} && ^
+                         sudo systemctl restart tomcat10 && ^
+                         echo 'Tomcat restarted successfully!'"
+                    """
+                }
+            }
+        }
+
+        stage('Verify') {
+            steps {
+                echo '✅ Verifying deployment...'
+                sshagent(credentials: ["${EC2_CRED}"]) {
+                    bat """
+                        ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} ^
+                        "sleep 5 && sudo systemctl is-active tomcat10 && echo 'Tomcat is running!' || echo 'Tomcat failed!'"
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo """
+====================================
+ BUILD SUCCEEDED
+ App live at: http://${EC2_HOST}:8080/${APP_CONTEXT}
+====================================
+"""
+        }
+        failure {
+            echo """
+====================================
+ BUILD FAILED
+ Check logs above for errors.
+====================================
+"""
+        }
+        always {
+            echo 'Pipeline finished.'
+        }
+    }
+}
+
+
+
+/*pipeline {
+    agent any
     
     tools {
         maven 'Maven-3.9'
@@ -52,15 +149,6 @@ pipeline {
             echo 'Build failed!'
         }
     }
-}
-```
+}*/
 
-## Step 12: Build the Project in Eclipse
 
-1. Right-click on project → **Run As** → **Maven build...**
-2. Goals: `clean package`
-3. Click **Run**
-
-Check the **Console** tab for build output. If successful, you'll see:
-```
-BUILD SUCCESS
