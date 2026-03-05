@@ -7,7 +7,7 @@ pipeline {
         WAR_NAME       = 'my-java-webapp.war'
         APP_CONTEXT    = 'my-java-webapp'
         TOMCAT_WEBAPPS = '/var/lib/tomcat10/webapps'
-        PEM_FILE       = 'C:\\Users\\khana\\Downloads\\jenkinsKeyPair.pem'
+        PEM_FILE       = 'C:\\jenkins-keys\\jenkinsKeyPair.pem'
     }
 
     tools {
